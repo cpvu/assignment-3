@@ -1,33 +1,50 @@
-import Head from 'next/head'
-import Image from 'next/image'
-//import { Inter } from 'next/font/google'
-//import styles from '@/styles/Home.module.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import Button from 'react-bootstrap/Button';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { PokemonModal } from '@/components/PokemonModal';
+import Card from 'react-bootstrap/Card';
 
-//const inter = Inter({ subsets: ['latin'] })
 
-export default function Home({pokemonTypes}) {
+async function getAllPokemon() {
+  const options = {
+    "method": "GET",
+    "Content-header": "application/json"
+  }
 
-  let [pokedex, setPokedex] = useState([]);
+  const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=810', options);
+  const responseJSON = await response.json();
+
+  return responseJSON;
+}
+
+export default function Home({ pokemonTypes, pokedex },) {
+  let [allPokemon, setAllPokemon] = useState();
   let [filteredPokedex, setFilterPokedex] = useState([]);
-  let [currentPage, setCurrentPage] = useState(1); 
+  let [currentPokemon, setCurrentPokemon] = useState();
+
+  let [currentPage, setCurrentPage] = useState(1);
   let [indexState, setIndexState] = useState(0);
-  let [indexFilterState, setIndexFilterState] = useState(0); 
- 
+  let [filterState, setFilterState] = useState(0);
+  let [pokemonCount, setPokemonCount] = useState();
+
+  let [count, setCount] = useState(1);
+
+  let currentType = useRef("")
 
   useEffect(() => {
-    console.log("Start" + indexState)
-    console.log("CurrentPage" + currentPage)
-    if (filteredPokedex.length == 0) {
-      getAllPokemon();
-    } 
-  }, [currentPage]);
+    displayPokemon()
+  }, [currentPage, filteredPokedex]);
 
   useEffect(() => {
-    return () => {
-      setPokedex(null)
-    }
-  }, [filteredPokedex])
+    displayPokemon();
+    setPokemon();
+  }, []);
+
+  function setPokemon() {
+    setAllPokemon(pokedex)
+    setPokemonCount(pokedex.length)
+    return;
+  }
 
   async function handleNext() {
     setCurrentPage(currentPage + 1);
@@ -35,102 +52,138 @@ export default function Home({pokemonTypes}) {
   }
 
   async function handlePageDirect(page) {
-    setIndexState((page * 9) - 9)
-    setCurrentPage(page);
-    return; 
+    console.log(page)
+    if (filteredPokedex.length > 0) {
+      setFilterState((page * 9) - 9)
+      setCurrentPage(page);
+    } else {
+      setIndexState((page * 9) - 9)
+      setCurrentPage(page);
+    }
+
+    return;
   }
 
   async function handlePrevious() {
     if (currentPage > 1) {
+      if (indexState > 0) {
+        setIndexState((currentPage * 9) - 18);
+      }
+
+      if (filterState > 0) {
+        setFilterState((currentPage * 9) - 18);
+      }
+
       setCurrentPage(currentPage - 1);
+
       return;
     }
   }
 
   async function filterType(event) {
-    let typeId = event.target.name;
+    let typeID = "";
 
-    const options = {
-      "method": "GET", 
-      "Content-header": "application/json"
+    if (event.target.checked) {
+      setFilterState(0)
+      setIndexState(0)
+      setCurrentPage(1)
+      typeID = event.target.name;
+      currentType.current = typeID;
+    } else {
+      typeID = currentType.current
     }
-    try {
-      const response = await fetch(`https://pokeapi.co/api/v2/type/${typeId}/`, options);
-      const responseJSON = await response.json();
 
-      let pokemon = responseJSON.pokemon;
-      
-      const startIndex = indexFilterState; 
-      const endIndex = currentPage * 9; 
-      console.log(pokemon)
-
-      console.log("End" + endIndex)
-      console.log(startIndex)
-      //console.log(responseJSON.results.slice(startIndex, endIndex))
-      setFilterPokedex(responseJSON.pokemon.slice(startIndex, endIndex)); 
-      setIndexState(endIndex + 1);
-      
-    } catch (err) {
-      console.log(err); 
+    if (!event.target.checked) {
+      setFilterState(0)
+      setIndexState(0)
+      setCurrentPage(1)
+      setFilterPokedex([])
+      return;
     }
-  }
 
-  async function getAllPokemon() {
     const options = {
       "method": "GET",
       "Content-header": "application/json"
     }
 
-    const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=810', options);
-    const responseJSON = await response.json();
+    try {
+      const response = await fetch(`https://pokeapi.co/api/v2/type/${typeID}/`, options);
+      const responseJSON = await response.json();
 
-    const startIndex = indexState; 
-    const endIndex = currentPage * 9; 
+      setFilterPokedex(responseJSON.pokemon)
+      setPokemonCount(responseJSON.pokemon.length)
 
-    //console.log(responseJSON.results.slice(startIndex, endIndex))
-    setPokedex(responseJSON.results.slice(startIndex, endIndex)); 
-    setIndexState(endIndex + 1);
-    
-    return;
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  function displayPokemon() {
+    let startIndex;
+    let endIndex = currentPage * 9;
+
+    if (filteredPokedex.length > 0) {
+      startIndex = filterState;
+      let newFilter = filteredPokedex.slice(startIndex, endIndex).map(pokemon => {
+        return pokemon.pokemon
+      })
+      setCurrentPokemon(newFilter);
+      setFilterState(endIndex);
+      return;
+
+    } else {
+      startIndex = indexState
+      setCurrentPokemon(pokedex.slice(startIndex, endIndex));
+      setIndexState(endIndex);
+      return;
+    }
   }
 
   return (
     <>
-    <div>
-      <h1>PokeDex</h1>
-      <div style={{padding: '3px', display: "flex", flexDirection:"row", minWidth: "15px", maxWidth: "20px"}}>
+      <div>
+        <h1>PokeDex</h1>
+        <div class="check-container">
+          {pokemonTypes.map((type, index) => {
+            return (
+              <div key={index} class="pokemon-check" >
+                <input key={index} type="checkbox" id={type.name} name={index + 1} onChange={(event) => filterType(event)}></input>
+                <label key={type.name} style={{ paddingLeft: "6px" }} class="checklabel" htmlFor={type.name}>{type.name}</label>
+              </div>)
+          })}
+        </div>
 
-      {pokemonTypes.map((type, index) => {
-        return (
-          <div style={{padding: '15px', align:"center"}}>
-          <label htmlFor={type.name}>{type.name}</label>
-          <input key={index} type="checkbox" id={type.name} name={index + 1} onChange={(event) => filterType(event)}></input>
-          </div>)
-      })}
+        <h3>Pokemon Count:</h3><p>{currentPokemon ? currentPokemon.length * currentPage : 0} of {pokemonCount}</p>
 
-     </div>
+        <div class="pokemon-container">
+          {currentPokemon ? currentPokemon.map((pokemon) => {
+            return <>
+              <Card style={{ width: '10rem', margin: "20px", alignContent: "center" }}>
+                <Card.Img variant="top" src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.url.split("/").slice(-2, -1)[0]}.png`} />
+                <Card.Body>
+                  <Card.Title style={{ textAlign: "center" }}>{pokemon.name}</Card.Title>
+                </Card.Body>
+                <PokemonModal pokemonAPI={pokemon.url}></PokemonModal>
+              </Card>
+            </>
+          }) : <p>s</p>}
+        </div>
 
-      {pokedex ? pokedex.map(pokemon => {
-        return <p>{pokemon.name}</p>
-      }) : filteredPokedex.map(pokemon => {
-        return <p>{pokemon && pokemon.pokemon.name}</p>
-      })}
+        <hr></hr>
 
-    
-      <hr></hr>
+        {currentPage != 1 ? <Button onClick={() => { handlePrevious() }}>Previous</Button> : <p></p>}
+        {currentPage > 2 ? <Button className="pageButton" variant="primary" onClick={() => handlePageDirect(currentPage - 2)}>{currentPage - 2}</Button> : <></>}
+        {currentPage > 1 ? <Button className="pageButton" variant="primary" onClick={() => handlePageDirect(currentPage - 1)}>{currentPage - 1}</Button> : <></>}
 
-      {currentPage != 1 ? <button>Previous</button> : <p></p>}
-      {currentPage > 2 ? <button onClick={() => handlePageDirect(currentPage - 2)}>{currentPage - 2}</button> : <></>}
-      {currentPage > 1 ? <button onClick={() => handlePageDirect(currentPage - 1)}>{currentPage - 1}</button> :<></>}
+        <Button className="pageButton" variant="dark" onClick={() => handlePageDirect(currentPage)}>{currentPage}</Button>
+        {(currentPage + 1) * 9 <= pokemonCount ? <Button className="pageButton" variant="primary" onClick={() => handlePageDirect(currentPage + 1)}>{currentPage + 1}</Button> : <></>}
+        {(currentPage + 2) * 9 <= pokemonCount ? <Button className="pageButton" onClick={() => handlePageDirect(currentPage + 2)}>{currentPage + 2}</Button> : <></>}
 
-      <button onClick={() => handlePageDirect(currentPage)}>{currentPage}</button>
-      <button onClick={() => handlePageDirect(currentPage + 1)}>{currentPage + 1}</button>
-      <button onClick={() => handlePageDirect(currentPage + 2)}>{currentPage + 2}</button>
-      <button onClick={() => {handleNext()}}>NEXT</button>
+        {(currentPage + 2) * 9 <= pokemonCount ? <Button variant="primary" className="pageButton" onClick={() => { handleNext() }}>NEXT</Button> : <></>}
 
-      <p>{currentPage}</p>
+        <p>{currentPage}</p>
 
-    </div>
+      </div>
     </>
   )
 }
@@ -144,11 +197,14 @@ export async function getServerSideProps(context) {
   }
 
   const response = await fetch("https://pokeapi.co/api/v2/type/", options);
-  const responseJSON = await response.json(); 
+  const responseJSON = await response.json();
+
+  const pokedex = await getAllPokemon();
 
   return {
-      props: {
-          pokemonTypes: responseJSON.results
-      },
+    props: {
+      pokemonTypes: responseJSON.results,
+      pokedex: pokedex.results
+    },
   };
 }
