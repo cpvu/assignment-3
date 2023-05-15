@@ -1,0 +1,52 @@
+body {
+    padding: 8px;
+}
+
+.pageButton {
+    margin: 5px;
+    padding-right: 5px;
+}
+
+.pokemon-container {
+    display: flex;
+}
+
+.checkLabel {
+    padding: 100px;
+}
+
+.pokemon-check {
+    margin: 2px;
+    padding: 3px;
+}
+
+.pokemon-card {
+    width: 10rem;
+    margin: 20px;
+    minWidth: 15px;
+    maxWidth: 20px;
+}
+
+.check-container {
+    width: 100%;
+    display: flex;
+    flex-direction: "row";
+}
+
+/* Media query for smaller screens */
+@media (max-width: 768px) {
+    .pokemon-container {
+        display: block;
+        width: 100%;
+    }
+
+    .pokemon-check {
+        width: 33%;
+    }
+
+    .check-container {
+        display: inline-block;
+        flex-direction: "column";
+    }
+
+}
